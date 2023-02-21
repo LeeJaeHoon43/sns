@@ -1,0 +1,21 @@
+spring:
+  jpa:
+    database: postgresql
+    hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
+    hibernate.ddl-auto: update
+    properties.hibernate.format_sql: true
+    show-sql: true
+---
+
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 4
+    url: jdbc:postgresql://localhost:5432/sns
+    username: admin
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+
+jwt:
+  secret-key: com.example.ljh.sns-application-2023.secret_key
+  token.expired-time-ms: 2592000000
