@@ -15,51 +15,50 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
 public class JwtTokenFilter extends OncePerRequestFilter {
 
-    private final String key;
+    private final String secretKey;
     private final UserService userService;
 
+    private final static List<String> TOKEN_IN_PARAM_URLS = List.of("/api/v1/users/alarm/subscribe");
+
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        // header
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         final String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header == null || !header.startsWith("Bearer ")){
-            log.error("Error occurs while getting header. header is null or invalid {}", request.getRequestURL());
-            filterChain.doFilter(request, response);
-            return;
-        }
-
+        final String token;
         try {
-            final String token = header.split(" ")[1].trim();
-
-            // check token is valid
-            if (JwtTokenUtils.isExpired(token, key)){
-                log.error("Key is expired");
-                filterChain.doFilter(request, response);
+            if (TOKEN_IN_PARAM_URLS.contains(request.getRequestURI())) {
+                log.info("Request with {} check the query param", request.getRequestURI());
+                token = request.getQueryString().split("=")[1].trim();
+            } else if (header == null || !header.startsWith("Bearer ")) {
+                log.error("Authorization Header does not start with Bearer {}", request.getRequestURI());
+                chain.doFilter(request, response);
                 return;
+            } else {
+                token = header.split(" ")[1].trim();
             }
 
-            // get userName from token
-            String userName = JwtTokenUtils.getUserName(token, key);
+            String userName = JwtTokenUtils.getUserName(token, secretKey);
+            User userDetails = userService.loadUserByUserName(userName);
 
-            // check the userName is valid
-            User user = userService.loadUserByUserName(userName);
-
-            UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                    user, null, user.getAuthorities());
-
-            usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-        } catch (RuntimeException e){
-            log.error("Error occurs while validating. {}", e.toString());
-            filterChain.doFilter(request, response);
+            if (!JwtTokenUtils.validate(token, userDetails.getUsername(), secretKey)) {
+                chain.doFilter(request, response);
+                return;
+            }
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    userDetails, null,
+                    userDetails.getAuthorities()
+            );
+            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        } catch (RuntimeException e) {
+            chain.doFilter(request, response);
             return;
         }
-
-        filterChain.doFilter(request, response);
+        chain.doFilter(request, response);
     }
 }

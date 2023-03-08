@@ -10,6 +10,11 @@ import java.util.Date;
 
 public class JwtTokenUtils {
 
+    public static Boolean validate(String token, String userName, String key) {
+        String usernameByToken = getUserName(token, key);
+        return usernameByToken.equals(userName) && !isExpired(token, key);
+    }
+
     public static String getUserName(String token, String key){
         return extractClaims(token, key).get("userName", String.class);
     }
