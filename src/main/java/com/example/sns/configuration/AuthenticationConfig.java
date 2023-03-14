@@ -34,16 +34,12 @@ public class AuthenticationConfig{
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf().disable()
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
-                        .antMatchers(
-                                "/",
-                                "/api/*/users/join",
-                                "/api/*/users/login",
-                                "/api/**"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeRequests()
+                .antMatchers("/api/*/users/join", "/api/*/users/login").permitAll()
+                .antMatchers("/api/*/users/alarm/subscribe/*").permitAll()
+                .antMatchers("/api/**").authenticated()
+                .anyRequest().permitAll()
+                .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
